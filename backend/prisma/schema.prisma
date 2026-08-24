@@ -1,0 +1,80 @@
+// Society Maintenance Tracker — database schema
+// Default datasource is SQLite for zero-config local setup.
+// To use Postgres in production, change provider to "postgresql"
+// and set DATABASE_URL to a Postgres connection string — no other
+// code changes are required, Prisma's client API stays identical.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  password    String
+  role        String   @default("resident") // "resident" | "admin"
+  flatNumber  String?
+  createdAt   DateTime @default(now())
+
+  complaints  Complaint[]
+  notices     Notice[]
+  historyLogs StatusHistory[]
+}
+
+model Complaint {
+  id          String    @id @default(uuid())
+  ticketNo    String    @unique
+  category    String
+  description String
+  photoUrl    String?
+  status      String    @default("Open")   // "Open" | "In Progress" | "Resolved"
+  priority    String    @default("Low")    // "Low" | "Medium" | "High"
+  residentId  String
+  resident    User      @relation(fields: [residentId], references: [id])
+  createdAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  history     StatusHistory[]
+
+  @@index([status])
+  @@index([category])
+  @@index([residentId])
+}
+
+model StatusHistory {
+  id          String    @id @default(uuid())
+  complaintId String
+  complaint   Complaint @relation(fields: [complaintId], references: [id])
+  status      String
+  note        String?
+  actorId     String
+  actor       User      @relation(fields: [actorId], references: [id])
+  actorName   String
+  actorRole   String
+  createdAt   DateTime  @default(now())
+
+  @@index([complaintId])
+}
+
+model Notice {
+  id        String   @id @default(uuid())
+  title     String
+  body      String
+  important Boolean  @default(false)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([important])
+}
+
+model Config {
+  id                   String @id @default("singleton")
+  overdueThresholdDays Int    @default(5)
+}
